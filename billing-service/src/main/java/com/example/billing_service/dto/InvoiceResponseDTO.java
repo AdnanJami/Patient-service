@@ -11,6 +11,7 @@ public record InvoiceResponseDTO(
         UUID id,
         UUID patientId,
         String patientName,
+        String accountStatus,
         String description,
         BigDecimal amount,
         InvoiceStatus status,
@@ -20,7 +21,7 @@ public record InvoiceResponseDTO(
 ) {
     public static InvoiceResponseDTO from(Invoice invoice) {
         return new InvoiceResponseDTO(invoice.getId(), invoice.getAccount().getPatientId(),
-                invoice.getAccount().getName(), invoice.getDescription(), invoice.getAmount(),
+                invoice.getAccount().getName(), invoice.getAccount().getStatus(), invoice.getDescription(), invoice.getAmount(),
                 invoice.getStatus(), invoice.getIssuedDate(), invoice.getDueDate(), invoice.getPaidDate());
     }
 }

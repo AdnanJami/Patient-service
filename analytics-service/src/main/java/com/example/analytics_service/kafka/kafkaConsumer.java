@@ -16,7 +16,8 @@ public class kafkaConsumer {
         try {
             PatientEvent patientEvent = PatientEvent.parseFrom(event);
 
-            log.info("Received Patient Event: [PatientId={},PatientName={},PatientEmail={}]",
+            log.info("Received Patient Event: [EventType={},PatientId={},PatientName={},PatientEmail={}]",
+                    patientEvent.getEventType(),
                     patientEvent.getPatientId(),
                     patientEvent.getName(),
                     patientEvent.getEmail());

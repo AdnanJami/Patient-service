@@ -236,6 +236,7 @@ export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
         <Modal title="Delete patient?" onClose={() => setDialog(null)}>
           <p className="text-sm text-slate-600">
             This permanently removes <span className="font-medium text-slate-900">{dialog.patient.name}</span>.
+            Their billing account will be closed; existing invoices are kept.
           </p>
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={() => setDialog(null)}>

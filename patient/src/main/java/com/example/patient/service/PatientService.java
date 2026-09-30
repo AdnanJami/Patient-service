@@ -44,7 +44,7 @@ public class PatientService {
         }
         Patient_class newPatient = patientRepository.save(PatientMapper.toModel(patientRequestDTO));
         billingServiceGrpcClient.createBillingAccount(newPatient.getId().toString(), newPatient.getName(), newPatient.getEmail());
-        kafkaProducer.sendEvent(newPatient);
+        kafkaProducer.sendEvent(newPatient, kafkaProducer.PATIENT_CREATED);
         return PatientMapper.toDTO(newPatient);
     }
     public PatientResponseDTO updatePatient (UUID id,PatientRequestDTO patientRequestDTO){
@@ -90,6 +90,10 @@ public class PatientService {
     }
 
     public void deletePatient(UUID id){
-        patientRepository.deleteById(id);
+        // Deleting an unknown patient stays a no-op (204), and publishes nothing.
+        patientRepository.findById(id).ifPresent(patient -> {
+            patientRepository.delete(patient);
+            kafkaProducer.sendEvent(patient, kafkaProducer.PATIENT_DELETED);
+        });
     }
 }
