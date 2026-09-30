@@ -3,6 +3,7 @@ package com.example.patient.kafka;
 import com.example.patient.model.Patient_class;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import patient.events.PatientEvent;
@@ -27,10 +28,20 @@ public class kafkaProducer {
                 .build();
         try {
             // Keyed by patient ID so all events for one patient stay in order on the same partition.
-            kafkaTemplate.send("patient", event.getPatientId(), event.toByteArray());
+            // Sending is asynchronous: it can also fail later (e.g. the broker goes away before
+            // delivery), so log that too instead of dropping the event silently.
+            kafkaTemplate.send("patient", event.getPatientId(), event.toByteArray())
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.error("Failed to publish {} event for patient {}: {}", eventType,
+                                    event.getPatientId(), NestedExceptionUtils.getMostSpecificCause(ex).getMessage());
+                        }
+                    });
 
         }catch (Exception e){
-            log.error("Error sending {} event : {}",eventType,event);
+            // Thrown when the broker can't be reached within max.block.ms.
+            log.error("Failed to publish {} event for patient {}: {}", eventType,
+                    event.getPatientId(), NestedExceptionUtils.getMostSpecificCause(e).getMessage());
         }
     }
 
