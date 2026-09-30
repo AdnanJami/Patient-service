@@ -5,29 +5,37 @@ import com.example.patient.dto.PatientResponseDTO;
 import com.example.patient.exception.EmailAlreadyExistException;
 import com.example.patient.exception.PatientNotFoundException;
 import com.example.patient.grpc.BillingServiceGrpcClient;
-import com.example.patient.kafka.kafkaProducer;
+import com.example.patient.kafka.PatientEventOutbox;
 import com.example.patient.mapper.PatientMapper;
 import com.example.patient.model.Patient_class;
 import com.example.patient.repository.PatientRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import static com.example.patient.kafka.kafkaProducer.PATIENT_CREATED;
+import static com.example.patient.kafka.kafkaProducer.PATIENT_DELETED;
+
 @Service
 public class PatientService {
     private final PatientRepository patientRepository;
     private final BillingServiceGrpcClient billingServiceGrpcClient;
-    private final kafkaProducer kafkaProducer;
+    private final PatientEventOutbox patientEventOutbox;
+    private final TransactionTemplate transactionTemplate;
 
     public PatientService (PatientRepository patientRepository,
                            BillingServiceGrpcClient billingServiceGrpcClient,
-                           kafkaProducer kafkaProducer){
+                           PatientEventOutbox patientEventOutbox,
+                           TransactionTemplate transactionTemplate){
 
         this.patientRepository = patientRepository;
         this.billingServiceGrpcClient = billingServiceGrpcClient;
-        this.kafkaProducer = kafkaProducer;
+        this.patientEventOutbox = patientEventOutbox;
+        this.transactionTemplate = transactionTemplate;
     }
     public List<PatientResponseDTO> getPatient(){
         List<Patient_class> patients = patientRepository.findAll();
@@ -42,9 +50,14 @@ public class PatientService {
         if(patientRepository.existsByEmail(patientRequestDTO.getEmail())){
             throw new EmailAlreadyExistException("A Patient Already exist with this email" + patientRequestDTO.getEmail());
         }
-        Patient_class newPatient = patientRepository.save(PatientMapper.toModel(patientRequestDTO));
+        // The patient and its PATIENT_CREATED event are stored together; OutboxRelay publishes the event.
+        Patient_class newPatient = transactionTemplate.execute(status -> {
+            Patient_class saved = patientRepository.save(PatientMapper.toModel(patientRequestDTO));
+            patientEventOutbox.record(saved, PATIENT_CREATED);
+            return saved;
+        });
+        // Outside the transaction so a slow billing-service doesn't hold a database connection.
         billingServiceGrpcClient.createBillingAccount(newPatient.getId().toString(), newPatient.getName(), newPatient.getEmail());
-        kafkaProducer.sendEvent(newPatient, kafkaProducer.PATIENT_CREATED);
         return PatientMapper.toDTO(newPatient);
     }
     public PatientResponseDTO updatePatient (UUID id,PatientRequestDTO patientRequestDTO){
@@ -89,11 +102,12 @@ public class PatientService {
         return PatientMapper.toDTO(updatedPatient);
     }
 
+    @Transactional
     public void deletePatient(UUID id){
         // Deleting an unknown patient stays a no-op (204), and publishes nothing.
         patientRepository.findById(id).ifPresent(patient -> {
             patientRepository.delete(patient);
-            kafkaProducer.sendEvent(patient, kafkaProducer.PATIENT_DELETED);
+            patientEventOutbox.record(patient, PATIENT_DELETED);
         });
     }
 }
