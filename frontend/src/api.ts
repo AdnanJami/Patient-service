@@ -29,6 +29,8 @@ export interface Invoice {
   id: string
   patientId: string
   patientName: string
+  /** 'CLOSED' once the patient has been deleted. */
+  accountStatus: string
   description: string
   amount: number
   status: InvoiceStatus

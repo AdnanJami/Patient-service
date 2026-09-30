@@ -26,6 +26,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(AccountClosedException.class)
+    public ResponseEntity<Map<String, String>> handleAccountClosed(AccountClosedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvoiceAlreadyPaidException.class)
     public ResponseEntity<Map<String, String>> handleAlreadyPaid(InvoiceAlreadyPaidException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));

@@ -10,6 +10,7 @@ import java.util.UUID;
 public class BillingAccount {
 
     public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_CLOSED = "CLOSED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -37,6 +38,15 @@ public class BillingAccount {
         this.patientId = patientId;
         this.name = name;
         this.email = email;
+    }
+
+    /** Closed when the patient is deleted; invoices are kept as financial records. */
+    public void close() {
+        this.status = STATUS_CLOSED;
+    }
+
+    public boolean isClosed() {
+        return STATUS_CLOSED.equals(status);
     }
 
     public UUID getId() {

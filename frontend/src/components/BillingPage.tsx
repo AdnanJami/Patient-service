@@ -77,6 +77,15 @@ export default function BillingPage({ onSignOut }: { onSignOut: () => void }) {
       </button>
     ) : null
 
+  const patientLabel = (invoice: Invoice) => (
+    <>
+      {invoice.patientName}
+      {invoice.accountStatus === 'CLOSED' && (
+        <span className="ml-2 text-xs font-normal text-slate-400">account closed</span>
+      )}
+    </>
+  )
+
   return (
     <main className="mx-auto max-w-6xl space-y-4 px-4 py-6">
       <div>
@@ -141,7 +150,7 @@ export default function BillingPage({ onSignOut }: { onSignOut: () => void }) {
               <li key={i.id} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-medium">{i.patientName}</div>
+                    <div className="font-medium">{patientLabel(i)}</div>
                     <div className="truncate text-sm text-slate-500">{i.description}</div>
                   </div>
                   <div className="text-right font-semibold tabular-nums">{formatMoney(i.amount)}</div>
@@ -174,7 +183,7 @@ export default function BillingPage({ onSignOut }: { onSignOut: () => void }) {
               <tbody className="divide-y divide-slate-100">
                 {visible.map((i) => (
                   <tr key={i.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium">{i.patientName}</td>
+                    <td className="px-4 py-3 font-medium">{patientLabel(i)}</td>
                     <td className="max-w-xs truncate px-4 py-3 text-slate-600">{i.description}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(i.issuedDate)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-600">

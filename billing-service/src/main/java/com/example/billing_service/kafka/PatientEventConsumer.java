@@ -11,15 +11,17 @@ import patient.events.PatientEvent;
 import java.util.UUID;
 
 /**
- * Sets up a billing account for every created patient. Patient-service also asks for the account
- * over gRPC right away; this is the durable path that catches patients created while billing was
- * down, because Kafka keeps the events until this consumer group has read them.
+ * Keeps billing accounts in step with patients. On PATIENT_CREATED it sets up the account;
+ * patient-service also asks for it over gRPC right away, and this is the durable path that catches
+ * patients created while billing was down, because Kafka keeps the events until this consumer group
+ * has read them. On PATIENT_DELETED it closes the account.
  */
 @Component
 public class PatientEventConsumer {
     private static final Logger log = LoggerFactory.getLogger(PatientEventConsumer.class);
 
     static final String PATIENT_CREATED = "PATIENT_CREATED";
+    static final String PATIENT_DELETED = "PATIENT_DELETED";
 
     private final BillingService billingService;
 
@@ -37,10 +39,6 @@ public class PatientEventConsumer {
             return;
         }
 
-        if (!PATIENT_CREATED.equals(event.getEventType())) {
-            return;
-        }
-
         UUID patientId;
         try {
             patientId = UUID.fromString(event.getPatientId());
@@ -49,6 +47,10 @@ public class PatientEventConsumer {
             return;
         }
 
-        billingService.getOrCreateAccount(patientId, event.getName(), event.getEmail());
+        switch (event.getEventType()) {
+            case PATIENT_CREATED -> billingService.getOrCreateAccount(patientId, event.getName(), event.getEmail());
+            case PATIENT_DELETED -> billingService.closeAccount(patientId);
+            default -> { }
+        }
     }
 }

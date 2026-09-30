@@ -3,6 +3,7 @@ package com.example.billing_service.service;
 import com.example.billing_service.dto.AccountResponseDTO;
 import com.example.billing_service.dto.InvoiceRequestDTO;
 import com.example.billing_service.dto.InvoiceResponseDTO;
+import com.example.billing_service.exception.AccountClosedException;
 import com.example.billing_service.exception.InvoiceAlreadyPaidException;
 import com.example.billing_service.exception.NotFoundException;
 import com.example.billing_service.model.BillingAccount;
@@ -72,6 +73,9 @@ public class BillingService {
     @Transactional
     public InvoiceResponseDTO createInvoice(UUID patientId, InvoiceRequestDTO request) {
         BillingAccount account = findAccount(patientId);
+        if (account.isClosed()) {
+            throw new AccountClosedException("Billing account is closed");
+        }
         Invoice invoice = invoiceRepository.save(
                 new Invoice(account, request.description().trim(), request.amount(), request.dueDate()));
         return InvoiceResponseDTO.from(invoice);
@@ -86,6 +90,20 @@ public class BillingService {
         }
         invoice.markPaid();
         return InvoiceResponseDTO.from(invoice);
+    }
+
+    /**
+     * Closes the patient's account when the patient is deleted. Invoices are kept, and unpaid ones
+     * can still be marked paid. Does nothing if the patient never had an account.
+     */
+    @Transactional
+    public void closeAccount(UUID patientId) {
+        accountRepository.findByPatientId(patientId)
+                .filter(account -> !account.isClosed())
+                .ifPresent(account -> {
+                    account.close();
+                    log.info("Closed billing account for deleted patient {}", patientId);
+                });
     }
 
     private BillingAccount findAccount(UUID patientId) {

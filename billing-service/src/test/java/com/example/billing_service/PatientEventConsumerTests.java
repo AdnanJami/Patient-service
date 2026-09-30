@@ -1,7 +1,11 @@
 package com.example.billing_service;
 
 import com.example.billing_service.dto.AccountResponseDTO;
+import com.example.billing_service.dto.InvoiceRequestDTO;
+import com.example.billing_service.dto.InvoiceResponseDTO;
+import com.example.billing_service.exception.AccountClosedException;
 import com.example.billing_service.exception.NotFoundException;
+import com.example.billing_service.model.InvoiceStatus;
 import com.example.billing_service.kafka.PatientEventConsumer;
 import com.example.billing_service.service.BillingService;
 import org.junit.jupiter.api.Test;
@@ -9,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import patient.events.PatientEvent;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +50,32 @@ class PatientEventConsumerTests {
 
         assertThat(account.name()).isEqualTo("Kafka Patient");
         assertThat(billingService.getAccount(patientId).id()).isEqualTo(account.id());
+    }
+
+    @Test
+    void deletedEventClosesAccountAndKeepsInvoices() {
+        UUID patientId = UUID.randomUUID();
+        consumer.consume(event(patientId.toString(), "PATIENT_CREATED"));
+        InvoiceResponseDTO unpaid = billingService.createInvoice(patientId,
+                new InvoiceRequestDTO("Consultation", new BigDecimal("50.00"), LocalDate.now()));
+
+        consumer.consume(event(patientId.toString(), "PATIENT_DELETED"));
+        consumer.consume(event(patientId.toString(), "PATIENT_DELETED"));
+
+        assertThat(billingService.getAccount(patientId).status()).isEqualTo("CLOSED");
+        assertThat(billingService.getInvoicesForPatient(patientId))
+                .singleElement()
+                .satisfies(i -> assertThat(i.accountStatus()).isEqualTo("CLOSED"));
+        assertThatThrownBy(() -> billingService.createInvoice(patientId,
+                new InvoiceRequestDTO("Follow-up", BigDecimal.TEN, LocalDate.now())))
+                .isInstanceOf(AccountClosedException.class);
+        assertThat(billingService.payInvoice(unpaid.id()).status()).isEqualTo(InvoiceStatus.PAID);
+    }
+
+    @Test
+    void deletedEventWithoutAccountIsIgnored() {
+        assertThatNoException().isThrownBy(() ->
+                consumer.consume(event(UUID.randomUUID().toString(), "PATIENT_DELETED")));
     }
 
     @Test
