@@ -28,7 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>25</java.version>
-		<protobuf.version>3.25.5</protobuf.version>
+		<protobuf.version>4.30.0</protobuf.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -78,15 +78,12 @@
 				<artifactId>protobuf-maven-plugin</artifactId>
 				<version>0.6.1</version>
 				<configuration>
-					<protocArtifact>com.google.protobuf:protoc:3.25.5:exe:${os.detected.classifier}</protocArtifact>
-					<pluginId>grpc-java</pluginId>
-					<pluginArtifact>io.grpc:protoc-gen-grpc-java:1.68.1:exe:${os.detected.classifier}</pluginArtifact>
+					<protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
 				</configuration>
 				<executions>
 					<execution>
 						<goals>
 							<goal>compile</goal>
-							<goal>compile-custom</goal>
 						</goals>
 					</execution>
 				</executions>
