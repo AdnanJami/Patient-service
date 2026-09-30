@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import { useEffect, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
 
 type Variant = 'primary' | 'secondary' | 'danger'
 
@@ -55,10 +55,12 @@ export function Alert({ children }: { children: ReactNode }) {
 export function Modal({
   title,
   onClose,
+  wide = false,
   children,
 }: {
   title: string
   onClose: () => void
+  wide?: boolean
   children: ReactNode
 }) {
   return (
@@ -70,7 +72,9 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:max-w-md sm:rounded-2xl"
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl ${
+          wide ? 'sm:max-w-2xl' : 'sm:max-w-md'
+        }`}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
@@ -84,6 +88,29 @@ export function Modal({
         </div>
         {children}
       </div>
+    </div>
+  )
+}
+
+/** A short-lived message; set it and it clears itself after 3 seconds. */
+export function useNotice() {
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    if (!notice) return
+    const t = setTimeout(() => setNotice(''), 3000)
+    return () => clearTimeout(t)
+  }, [notice])
+  return [notice, setNotice] as const
+}
+
+export function Toast({ message }: { message: string }) {
+  if (!message) return null
+  return (
+    <div
+      role="status"
+      className="fixed inset-x-4 bottom-4 z-[60] mx-auto max-w-sm rounded-lg bg-slate-900 px-4 py-3 text-center text-sm text-white shadow-lg"
+    >
+      {message}
     </div>
   )
 }

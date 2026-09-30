@@ -1,3 +1,4 @@
 # Postgres data volumes mounted by docker-compose
 patient-service-db/
 autht-service-db/
+billing-service-db/

@@ -44,6 +44,25 @@ services:
     networks:
       - internal
 
+  billing-service-db:
+    image: postgres:18
+    container_name: billing-service-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: db
+    ports:
+      - "5002:5432"
+    volumes:
+      - ./billing-service-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
   kafka:
     image: apache/kafka:latest
     container_name: kafka
@@ -73,9 +92,17 @@ services:
   billing-service:
     build: ./billing-service
     container_name: billing-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://billing-service-db:5432/db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
     ports:
       - "4001:4001"
       - "9001:9001"
+    depends_on:
+      billing-service-db:
+        condition: service_healthy
     networks:
       - internal
 

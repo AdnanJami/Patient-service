@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type Patient, type PatientInput } from '../api'
+import { formatDate } from '../format'
+import PatientBilling from './PatientBilling'
 import PatientForm from './PatientForm'
-import { Alert, Button, Modal } from './ui'
+import { Alert, Button, Modal, Toast, useNotice } from './ui'
 
 type Dialog =
   | { kind: 'create' }
@@ -10,16 +12,13 @@ type Dialog =
   | { kind: 'delete'; patient: Patient }
   | null
 
-const formatDate = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-
 export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [dialog, setDialog] = useState<Dialog>(null)
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useNotice()
 
   // Any 401 means the token expired or was rejected: go back to the login screen.
   const handleError = useCallback(
@@ -46,12 +45,6 @@ export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
   useEffect(() => {
     load()
   }, [load])
-
-  useEffect(() => {
-    if (!notice) return
-    const t = setTimeout(() => setNotice(''), 3000)
-    return () => clearTimeout(t)
-  }, [notice])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -102,19 +95,7 @@ export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="grid size-8 place-items-center rounded-lg bg-teal-600 font-bold text-white">+</div>
-            <span className="font-semibold">Patient Service</span>
-          </div>
-          <Button variant="secondary" onClick={onSignOut}>
-            Sign out
-          </Button>
-        </div>
-      </header>
-
+    <>
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -212,14 +193,7 @@ export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
         )}
       </main>
 
-      {notice && (
-        <div
-          role="status"
-          className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-sm rounded-lg bg-slate-900 px-4 py-3 text-center text-sm text-white shadow-lg"
-        >
-          {notice}
-        </div>
-      )}
+      <Toast message={notice} />
 
       {dialog?.kind === 'create' && (
         <Modal title="Add patient" onClose={() => setDialog(null)}>
@@ -234,8 +208,8 @@ export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
       )}
 
       {dialog?.kind === 'view' && (
-        <Modal title={dialog.patient.name} onClose={() => setDialog(null)}>
-          <dl className="space-y-3 text-sm">
+        <Modal title={dialog.patient.name} onClose={() => setDialog(null)} wide>
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
             {[
               ['Email', dialog.patient.email],
               ['Address', dialog.patient.address],
@@ -248,11 +222,12 @@ export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
               </div>
             ))}
           </dl>
+          <PatientBilling patient={dialog.patient} onNotice={setNotice} onSignOut={onSignOut} />
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="secondary" onClick={() => setDialog(null)}>
               Close
             </Button>
-            <Button onClick={() => setDialog({ kind: 'edit', patient: dialog.patient })}>Edit</Button>
+            <Button onClick={() => setDialog({ kind: 'edit', patient: dialog.patient })}>Edit patient</Button>
           </div>
         </Modal>
       )}
@@ -272,6 +247,6 @@ export default function PatientsPage({ onSignOut }: { onSignOut: () => void }) {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }

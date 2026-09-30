@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { ApiError, type FieldErrors, type Patient, type PatientInput } from '../api'
+import { today } from '../format'
 import { Alert, Button, Field } from './ui'
-
-const today = () => new Date().toISOString().slice(0, 10)
 
 export default function PatientForm({
   patient,

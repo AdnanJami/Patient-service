@@ -14,7 +14,36 @@ export interface PatientInput {
   registeredDate?: string
 }
 
-/** Field name -> message, as returned by the patient service on 400. */
+export interface BillingAccount {
+  id: string
+  patientId: string
+  name: string
+  email: string
+  status: string
+  createdAt: string
+}
+
+export type InvoiceStatus = 'UNPAID' | 'PAID'
+
+export interface Invoice {
+  id: string
+  patientId: string
+  patientName: string
+  description: string
+  amount: number
+  status: InvoiceStatus
+  issuedDate: string
+  dueDate: string
+  paidDate: string | null
+}
+
+export interface InvoiceInput {
+  description: string
+  amount: string
+  dueDate: string
+}
+
+/** Field name -> message, as returned by the patient and billing services on 400. */
 export type FieldErrors = Record<string, string>
 
 export class ApiError extends Error {
@@ -93,4 +122,32 @@ export const api = {
     request<Patient>(`/api/patients/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
 
   deletePatient: (id: string) => request<void>(`/api/patients/${id}`, { method: 'DELETE' }),
+
+  /** Resolves to null when the patient has no billing account yet. */
+  async getBillingAccount(patientId: string): Promise<BillingAccount | null> {
+    try {
+      return await request<BillingAccount>(`/api/billing/accounts/${patientId}`)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null
+      throw e
+    }
+  },
+
+  createBillingAccount: (patient: Patient) =>
+    request<BillingAccount>('/api/billing/accounts', {
+      method: 'POST',
+      body: JSON.stringify({ patientId: patient.id, name: patient.name, email: patient.email }),
+    }),
+
+  listPatientInvoices: (patientId: string) => request<Invoice[]>(`/api/billing/accounts/${patientId}/invoices`),
+
+  createInvoice: (patientId: string, input: InvoiceInput) =>
+    request<Invoice>(`/api/billing/accounts/${patientId}/invoices`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  listInvoices: () => request<Invoice[]>('/api/billing/invoices'),
+
+  payInvoice: (invoiceId: string) => request<Invoice>(`/api/billing/invoices/${invoiceId}/pay`, { method: 'POST' }),
 }
