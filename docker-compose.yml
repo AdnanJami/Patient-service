@@ -97,11 +97,14 @@ services:
       SPRING_DATASOURCE_USERNAME: admin
       SPRING_DATASOURCE_PASSWORD: admin
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "4001:4001"
       - "9001:9001"
     depends_on:
       billing-service-db:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     networks:
       - internal

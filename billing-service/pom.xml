@@ -64,6 +64,12 @@
 			<artifactId>grpc-stub</artifactId>
 		</dependency>
 
+		<!-- Kafka: consumes patient events to set up billing accounts -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-kafka</artifactId>
+		</dependency>
+
 		<!-- Spring Boot Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
