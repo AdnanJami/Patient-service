@@ -12,6 +12,7 @@ import com.example.billing_service.repository.BillingAccountRepository;
 import com.example.billing_service.repository.InvoiceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,12 +31,21 @@ public class BillingService {
         this.invoiceRepository = invoiceRepository;
     }
 
-    /** Returns the patient's account, creating it on first call. Safe to call repeatedly. */
-    @Transactional
+    /**
+     * Returns the patient's account, creating it on first call. Safe to call repeatedly and
+     * concurrently: the gRPC call and the Kafka event for the same patient can arrive together.
+     * Deliberately not @Transactional, so a lost insert race can be recovered with a fresh read.
+     */
     public AccountResponseDTO getOrCreateAccount(UUID patientId, String name, String email) {
         BillingAccount account = accountRepository.findByPatientId(patientId).orElseGet(() -> {
-            log.info("Creating billing account for patient {}", patientId);
-            return accountRepository.save(new BillingAccount(patientId, name, email));
+            try {
+                BillingAccount created = accountRepository.saveAndFlush(new BillingAccount(patientId, name, email));
+                log.info("Created billing account for patient {}", patientId);
+                return created;
+            } catch (DataIntegrityViolationException e) {
+                // Another caller created it between our read and insert (unique patient_id).
+                return accountRepository.findByPatientId(patientId).orElseThrow(() -> e);
+            }
         });
         return AccountResponseDTO.from(account);
     }
